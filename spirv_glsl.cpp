@@ -10653,6 +10653,7 @@ void CompilerGLSL::emit_instruction(const Instruction &instruction)
 		bool old_need_transpose = false;
 
 		auto *ptr_expression = maybe_get<SPIRExpression>(ptr);
+		auto *ptr_ty = ptr_expression ? maybe_get<SPIRType>(ptr_expression->expression_type) : nullptr;
 
 		if (forward)
 		{
@@ -10677,8 +10678,18 @@ void CompilerGLSL::emit_instruction(const Instruction &instruction)
 		bool is_remapped = has_extended_decoration(ptr, SPIRVCrossDecorationPhysicalTypeID);
 		if (forward || (!is_packed && !is_remapped))
 		{
-			// For the simple case, we do not need to deal with repacking.
-			expr = to_dereferenced_expression(ptr, false);
+			// In cases where we can forward but the basetype is a struct, we
+			// don't need to dereference since we take those parameters as
+			// references instead of raw pointers.
+			if (ptr_ty && ptr_ty->basetype == SPIRType::Struct && ptr_ty->pointer)
+			{
+				expr = to_expression(ptr, true);
+			}
+			else
+			{
+				// For the simple case, we do not need to deal with repacking.
+				expr = to_dereferenced_expression(ptr, false);
+			}
 		}
 		else
 		{
